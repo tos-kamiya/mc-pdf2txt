@@ -1,0 +1,71 @@
+#!/usr/bin/env python3
+
+import sys
+import os
+import tempfile
+import subprocess
+
+import docopt
+
+# sudo apt install tesseract-ocr
+# sudo apt install tesseract-ocr-jpn
+# sudo apt install poppler-utils
+
+
+__doc__ = """Convert multi-column pdf to text with `poppler` and `tesseract`.
+
+Usage:
+  mc-pdf2text [-l LANG] <input> [<output>]
+
+Option:
+  -l LANG   Language, such as `eng`, `jpn`, or `eng+jpn`
+  <input>   Input PDF file
+  <output>  Output text file
+"""
+
+
+def main():
+    args = docopt.docopt(__doc__)
+    input_file = args['<input>']
+    output_file = args['<output>']
+    option_lang = args['-l']
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        def to_path(f):
+            return os.path.join(temp_dir, f)
+        # print("temp dir = %s" % temp_dir)
+
+        subprocess.run(['pdftoppm', '-png', input_file, to_path('image')], check=True)
+
+        page_images = os.listdir(temp_dir)
+        page_images.sort()
+        # print("page_images = %s" % repr(page_images))
+
+        cmd0 = ['tesseract']
+        if option_lang:
+            cmd0.extend(['-l', option_lang])
+        cmd0.extend(['--psm', '3'])
+        for pi in page_images:
+            subprocess.run(cmd0 + [to_path(pi), to_path(pi + '.txt')], check=True)
+
+        page_texts = [f for f in os.listdir(temp_dir) if f.endswith('.txt')]
+        page_texts.sort()
+        # print("page texts = %s" % page_texts)
+
+        text_lines = []
+        for pt in page_texts:
+            with open(to_path(pt)) as inp:
+                lines = inp.readlines()
+                text_lines.extend(lines)
+                text_lines.append('---\n')  # add separator
+        
+    if output_file:
+        with open(output_file, 'w') as outp:
+            outp.writelines(text_lines)
+    else:
+        sys.stdout.writelines(text_lines)
+
+
+if __name__ == '__main__':
+    main()
+
