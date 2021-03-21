@@ -15,7 +15,7 @@ import docopt
 __doc__ = """Convert multi-column pdf to text with `poppler` and `tesseract`.
 
 Usage:
-  mc-pdf2text [-l LANG] <input> [<output>]
+  mc-pdf2txt [-l LANG] <input> [<output>]
 
 Option:
   -l LANG   Language, such as `eng`, `jpn`, or `eng+jpn`

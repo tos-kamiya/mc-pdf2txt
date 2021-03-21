@@ -37,11 +37,12 @@ sudo python3 -m pip install docopt
 
 ```
 Usage:
-  mc-pdf2text [-l LANG] <input> [<output>]
+  mc-pdf2txt [-l LANG] <input> [<output>]
 
 Option:
   -l LANG   Language, such as `eng`, `jpn`, or `eng+jpn`
   <input>   Input PDF file
+  <output>  Output text file
 ```
 
 
