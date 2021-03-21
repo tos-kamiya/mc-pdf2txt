@@ -11,12 +11,13 @@ import docopt
 __doc__ = """Convert multi-column pdf to text with `poppler` and `tesseract`.
 
 Usage:
-  mc-pdf2txt [-l LANG] <input> [<output>]
+  mc-pdf2txt [-l LANG] [-r DPI] <input> [<output>]
 
 Option:
   -l LANG   Language, such as `eng`, `jpn`, or `eng+jpn`
   <input>   Input PDF file
   <output>  Output text file
+  -r DPI    Resolution of temporary image file [default: 600]
 """
 
 
@@ -25,17 +26,25 @@ def main():
     input_file = args['<input>']
     output_file = args['<output>']
     option_lang = args['-l']
+    option_resolution = int(args['-r'])
 
     with tempfile.TemporaryDirectory() as temp_dir:
         def to_path(f):
             return os.path.join(temp_dir, f)
         # print("temp dir = %s" % temp_dir)
 
-        subprocess.run(['pdftoppm', '-png', input_file, to_path('image')], check=True)
+        cmd = [
+            'pdftoppm',
+            '-r', '%d' % option_resolution,
+            '-gray',
+            '-png', input_file, 
+            to_path('image')
+        ]
+        subprocess.run(cmd, check=True)
 
         page_images = os.listdir(temp_dir)
         page_images.sort()
-        # print("page_images = %s" % repr(page_images))
+        # print("page images = %s" % repr(page_images))
 
         cmd0 = ['tesseract']
         if option_lang:

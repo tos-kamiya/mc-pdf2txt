@@ -43,6 +43,7 @@ Option:
   -l LANG   Language, such as `eng`, `jpn`, or `eng+jpn`
   <input>   Input PDF file
   <output>  Output text file
+  -r DPI    Resolution of temporary image file [default: 600]
 ```
 
 
