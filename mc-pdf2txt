@@ -7,10 +7,6 @@ import subprocess
 
 import docopt
 
-# sudo apt install tesseract-ocr
-# sudo apt install tesseract-ocr-jpn
-# sudo apt install poppler-utils
-
 
 __doc__ = """Convert multi-column pdf to text with `poppler` and `tesseract`.
 
@@ -55,9 +51,9 @@ def main():
         text_lines = []
         for pt in page_texts:
             with open(to_path(pt)) as inp:
-                lines = inp.readlines()
-                text_lines.extend(lines)
-                text_lines.append('---\n')  # add separator
+                lines = [L.rstrip() for L in inp.readlines()]
+                lines.append('---')  # add separator
+                text_lines.extend(L + '\n' for L in lines)
         
     if output_file:
         with open(output_file, 'w') as outp:
