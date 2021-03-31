@@ -11,13 +11,14 @@ import docopt
 __doc__ = """Convert multi-column pdf to text with `poppler` and `tesseract`.
 
 Usage:
-  mc-pdf2txt [-l LANG] [-r DPI] <input> [<output>]
+  mc-pdf2txt [options] <input> [<output>]
 
-Option:
-  -l LANG   Language, such as `eng`, `jpn`, or `eng+jpn`
-  <input>   Input PDF file
-  <output>  Output text file
-  -r DPI    Resolution of temporary image file [default: 600]
+Options
+  -l LANG           Language, such as `eng`, `jpn`, or `eng+jpn`
+  <input>           Input PDF file
+  <output>          Output text file
+  -r DPI            Resolution of temporary image file [default: 600]
+  --timeout SEC     Timeout in sec to exec `pdftoppm` [default: 60]
 """
 
 
@@ -26,7 +27,8 @@ def main():
     input_file = args['<input>']
     output_file = args['<output>']
     option_lang = args['-l']
-    option_resolution = int(args['-r'])
+    resolution = int(args['-r'])
+    timeout = int(args['--timeout'])
 
     with tempfile.TemporaryDirectory() as temp_dir:
         def to_path(f):
@@ -35,12 +37,15 @@ def main():
 
         cmd = [
             'pdftoppm',
-            '-r', '%d' % option_resolution,
+            '-r', '%d' % resolution,
             '-gray',
             '-png', input_file, 
             to_path('image')
         ]
-        subprocess.run(cmd, check=True)
+        try:
+            subprocess.run(cmd, check=True, timeout=timeout)
+        except subprocess.TimeoutExpired as e:
+            sys.exit("Timeout expired in running `pdftoppm`. Re-try with the lower resolution (-r) or the larger timeout (--timeout).")
 
         page_images = os.listdir(temp_dir)
         page_images.sort()

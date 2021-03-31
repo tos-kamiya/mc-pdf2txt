@@ -44,6 +44,7 @@ Option:
   <input>   Input PDF file
   <output>  Output text file
   -r DPI    Resolution of temporary image file [default: 600]
+  --timeout SEC     Timeout in sec to exec `pdftoppm` [default: 60]
 ```
 
 
