@@ -47,4 +47,5 @@ Options:
   --timeout SEC     Timeout in sec to exec `pdftoppm` [default: 60].
   --page-separator LINE     String to be output as page separator [default: ---].
   --psm VALUE       Page segmentation mode of `tessoract-ocr` [default: 3].
+  --verbose         Verbose.
 ```

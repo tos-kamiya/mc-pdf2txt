@@ -4,8 +4,9 @@ import sys
 import os
 import tempfile
 import subprocess
-import shutil
 import pathlib
+from shutil import copy
+from shlex import quote
 
 import docopt
 
@@ -23,6 +24,7 @@ Options:
   --timeout SEC     Timeout in sec to exec `pdftoppm` [default: 60].
   --page-separator LINE     String to be output as page separator [default: ---].
   --psm VALUE       Page segmentation mode of `tessoract-ocr` [default: 3].
+  --verbose         Verbose.
 """
 
 
@@ -35,9 +37,17 @@ def main():
     timeout = int(args['--timeout'])
     page_separator = args['--page-separator'] or '---'
     page_segmentation_mode = int(args['--psm'] or '3')
+    verbose = args['--verbose']
+
+    def run(cmd, check=False, timeout=None):
+        if verbose:
+            print('> exec: ' + ' '.join(quote(c) for c in cmd), file=sys.stderr)
+        subprocess.run(cmd, check=check, timeout=timeout)
 
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_dir_path = pathlib.Path(temp_dir)
+        if verbose:
+            print(f'> make temporary dir: {quote(str(temp_dir))}', file=sys.stderr)
 
         suffix_len = len("%d" % len(input_files))
         for i, input_file in enumerate(input_files):
@@ -51,12 +61,12 @@ def main():
                     str(temp_dir_path / image_file_name_body)
                 ]
                 try:
-                    subprocess.run(cmd, check=True, timeout=timeout)
+                    run(cmd, check=True, timeout=timeout)
                 except subprocess.TimeoutExpired as e:
                     sys.exit("Timeout expired in running `pdftoppm`. Re-try with the lower resolution (-r) or the larger timeout (--timeout).")
             elif input_file.lower().endswith(('.png', '.jpg', '.jpeg', '.tif')):
                 image_file_name = f'image-%0{suffix_len}d.{temp_dir_path.suffix}' % i
-                shutil.copy(input_file, temp_dir_path / image_file_name)
+                copy(input_file, temp_dir_path / image_file_name)
             else:
                 sys.exit('Error: unrecognized file format.')
 
@@ -69,20 +79,28 @@ def main():
             cmd0.extend(['-l', option_lang])
         cmd0.extend(['--psm', '%d' % page_segmentation_mode])
         for pi in page_images:
-            subprocess.run(cmd0 + [str(pi), str(pi) + '.txt'], check=True)
+            run(cmd0 + [str(pi), str(pi) + '.txt'], check=True)
 
         page_texts = [str(p) for p in temp_dir_path.glob('*.txt')]
         page_texts.sort()
         # print("page texts = %s" % page_texts)
 
+        if verbose:
+            fs = ', '.join(quote(pt) for pt in page_texts)
+            print(f'> read and join texts from files: {fs}', file=sys.stderr)
         text_lines = []
         for pt in page_texts:
             with open(pt) as inp:
                 lines = [L.rstrip() for L in inp.readlines()]
                 lines.append(page_separator)  # add separator
                 text_lines.extend(L + '\n' for L in lines)
-        
+
+    if verbose:
+        print(f'> remove temporary dir: {quote(str(temp_dir))}', file=sys.stderr)
+
     if output_file:
+        if verbose:
+            print(f'> write text to file: {quote(output_file)}', file=sys.stderr)
         with open(output_file, 'w') as outp:
             outp.writelines(text_lines)
     else:
