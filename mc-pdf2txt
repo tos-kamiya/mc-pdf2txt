@@ -11,6 +11,18 @@ from shlex import quote
 import docopt
 
 
+try:
+    subprocess.check_output(['which', 'tesseract'])
+except subprocess.CalledProcessError as e:
+    if e.returncode == 1:
+        sys.exit("Error: command not found: tesseract. (perhaps need to install `tesseract-ocr`)")
+try:
+    subprocess.check_output(['which', 'pdftoppm'])
+except subprocess.CalledProcessError as e:
+    if e.returncode == 1:
+        sys.exit("Error: command not found: pdftoppm. (perhaps need to install `poppler-utils`)")
+
+
 __doc__ = """Convert multi-column pdf to text with `poppler` and `tesseract`.
 
 Usage:
@@ -37,17 +49,20 @@ def main():
     timeout = int(args['--timeout'])
     page_separator = args['--page-separator'] or '---'
     page_segmentation_mode = int(args['--psm'] or '3')
-    verbose = args['--verbose']
+    option_verbose = args['--verbose']
+
+    def verbose_message(msg):
+        if option_verbose:
+            print(msg, file=sys.stderr)
 
     def run(cmd, check=False, timeout=None):
-        if verbose:
+        if option_verbose:
             print('> exec: ' + ' '.join(quote(c) for c in cmd), file=sys.stderr)
         subprocess.run(cmd, check=check, timeout=timeout)
 
     with tempfile.TemporaryDirectory() as temp_dir:
+        verbose_message(f'> make temporary dir: {quote(str(temp_dir))}')
         temp_dir_path = pathlib.Path(temp_dir)
-        if verbose:
-            print(f'> make temporary dir: {quote(str(temp_dir))}', file=sys.stderr)
 
         suffix_len = len("%d" % len(input_files))
         for i, input_file in enumerate(input_files):
@@ -85,9 +100,7 @@ def main():
         page_texts.sort()
         # print("page texts = %s" % page_texts)
 
-        if verbose:
-            fs = ', '.join(quote(pt) for pt in page_texts)
-            print(f'> read and join texts from files: {fs}', file=sys.stderr)
+        verbose_message(f'> read and join texts from files: {", ".join(quote(pt) for pt in page_texts)}')
         text_lines = []
         for pt in page_texts:
             with open(pt) as inp:
@@ -95,12 +108,10 @@ def main():
                 lines.append(page_separator)  # add separator
                 text_lines.extend(L + '\n' for L in lines)
 
-    if verbose:
-        print(f'> remove temporary dir: {quote(str(temp_dir))}', file=sys.stderr)
+        verbose_message(f'> remove temporary dir: {quote(str(temp_dir))}')
 
     if output_file:
-        if verbose:
-            print(f'> write text to file: {quote(output_file)}', file=sys.stderr)
+        verbose_message(f'> write text to file: {quote(output_file)}')
         with open(output_file, 'w') as outp:
             outp.writelines(text_lines)
     else:
