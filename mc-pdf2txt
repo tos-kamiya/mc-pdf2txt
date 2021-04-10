@@ -4,6 +4,8 @@ import sys
 import os
 import tempfile
 import subprocess
+import shutil
+import pathlib
 
 import docopt
 
@@ -11,62 +13,73 @@ import docopt
 __doc__ = """Convert multi-column pdf to text with `poppler` and `tesseract`.
 
 Usage:
-  mc-pdf2txt [options] <input> [<output>]
+  mc-pdf2txt [options] <input>...
 
-Options
-  -l LANG           Language, such as `eng`, `jpn`, or `eng+jpn`
-  <input>           Input PDF file
-  <output>          Output text file
-  -r DPI            Resolution of temporary image file [default: 600]
-  --timeout SEC     Timeout in sec to exec `pdftoppm` [default: 60]
+Options:
+  -l LANG           Language, such as `eng`, `jpn`, or `eng+jpn`.
+  <input>           Input PDF file.
+  -o OUTPUT         Output text file.
+  -r DPI            Resolution of temporary image file [default: 600].
+  --timeout SEC     Timeout in sec to exec `pdftoppm` [default: 60].
+  --page-separator LINE     String to be output as page separator [default: ---].
+  --psm VALUE       Page segmentation mode of `tessoract-ocr` [default: 3].
 """
 
 
 def main():
     args = docopt.docopt(__doc__)
-    input_file = args['<input>']
-    output_file = args['<output>']
+    input_files = args['<input>']
+    output_file = args['-o']
     option_lang = args['-l']
     resolution = int(args['-r'])
     timeout = int(args['--timeout'])
+    page_separator = args['--page-separator'] or '---'
+    page_segmentation_mode = int(args['--psm'] or '3')
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        def to_path(f):
-            return os.path.join(temp_dir, f)
-        # print("temp dir = %s" % temp_dir)
+        temp_dir_path = pathlib.Path(temp_dir)
 
-        cmd = [
-            'pdftoppm',
-            '-r', '%d' % resolution,
-            '-gray',
-            '-png', input_file, 
-            to_path('image')
-        ]
-        try:
-            subprocess.run(cmd, check=True, timeout=timeout)
-        except subprocess.TimeoutExpired as e:
-            sys.exit("Timeout expired in running `pdftoppm`. Re-try with the lower resolution (-r) or the larger timeout (--timeout).")
+        suffix_len = len("%d" % len(input_files))
+        for i, input_file in enumerate(input_files):
+            image_file_name_body = f'image-%0{suffix_len}d' % i
+            if input_file.lower().endswith('.pdf'):
+                cmd = [
+                    'pdftoppm',
+                    '-r', '%d' % resolution,
+                    '-gray',
+                    '-png', input_file, 
+                    str(temp_dir_path / image_file_name_body)
+                ]
+                try:
+                    subprocess.run(cmd, check=True, timeout=timeout)
+                except subprocess.TimeoutExpired as e:
+                    sys.exit("Timeout expired in running `pdftoppm`. Re-try with the lower resolution (-r) or the larger timeout (--timeout).")
+            elif input_file.lower().endswith(('.png', '.jpg', '.jpeg', '.tif')):
+                image_file_name = f'image-%0{suffix_len}d.{temp_dir_path.suffix}' % i
+                shutil.copy(input_file, temp_dir_path / image_file_name)
+            else:
+                sys.exit('Error: unrecognized file format.')
 
-        page_images = os.listdir(temp_dir)
+        page_images = list(temp_dir_path.iterdir())
         page_images.sort()
         # print("page images = %s" % repr(page_images))
 
         cmd0 = ['tesseract']
         if option_lang:
             cmd0.extend(['-l', option_lang])
-        cmd0.extend(['--psm', '3'])
+        cmd0.extend(['--psm', '%d' % page_segmentation_mode])
         for pi in page_images:
-            subprocess.run(cmd0 + [to_path(pi), to_path(pi + '.txt')], check=True)
+            subprocess.run(cmd0 + [str(pi), str(pi) + '.txt'], check=True)
 
-        page_texts = [f for f in os.listdir(temp_dir) if f.endswith('.txt')]
+        page_texts = [str(p) for p in temp_dir_path.glob('*.txt')]
         page_texts.sort()
         # print("page texts = %s" % page_texts)
 
         text_lines = []
         for pt in page_texts:
-            with open(to_path(pt)) as inp:
+            with open(pt) as inp:
                 lines = [L.rstrip() for L in inp.readlines()]
-                lines.append('---')  # add separator
+                lines.append(page_separator)  # add separator
                 text_lines.extend(L + '\n' for L in lines)
         
     if output_file:
