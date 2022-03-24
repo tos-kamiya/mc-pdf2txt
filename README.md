@@ -25,13 +25,11 @@ with the language data files of your choice, e.g.,
 sudo apt install tesseract-ocr-jpn
 ```
 
-Install docopt.
+(2) Install mc-pdf2txt
 
 ```sh
-sudo python3 -m pip install docopt
+pip3 install mc-pdf2txt
 ```
-
-(2) Copy `mc-pdf2txt` to a directory on the path, such as `~/bin/`.
 
 ## Usage
 

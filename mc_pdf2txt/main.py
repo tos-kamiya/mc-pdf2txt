@@ -1,26 +1,32 @@
-#!/usr/bin/env python3
+from typing import List, Optional
 
-import sys
+import importlib
 import os
-import tempfile
-import subprocess
 import pathlib
-from shutil import copy
 from shlex import quote
+from shutil import copy
+import subprocess
+import sys
+import tempfile
 
-import docopt
+from docopt import docopt
+from init_attrs_with_kwargs import InitAttrsWKwArgs
 
 
-try:
-    subprocess.check_output(['which', 'tesseract'])
-except subprocess.CalledProcessError as e:
-    if e.returncode == 1:
-        sys.exit("Error: command not found: tesseract. (perhaps need to install `tesseract-ocr`)")
-try:
-    subprocess.check_output(['which', 'pdftoppm'])
-except subprocess.CalledProcessError as e:
-    if e.returncode == 1:
-        sys.exit("Error: command not found: pdftoppm. (perhaps need to install `poppler-utils`)")
+VERSION = importlib.metadata.version("mc-pdf2txt")
+
+
+class CLArgs(InitAttrsWKwArgs):
+    lang: Optional[str]
+    input: List[str]
+    output: Optional[str]
+    resolution: int
+    timeout: int
+    page_separator: str
+    psm: int
+    verbose: bool
+    help: bool
+    version: bool
 
 
 __doc__ = """Convert multi-column pdf to text with `poppler` and `tesseract`.
@@ -29,34 +35,38 @@ Usage:
   mc-pdf2txt [options] <input>...
 
 Options:
-  -l LANG           Language, such as `eng`, `jpn`, or `eng+jpn`.
-  <input>           Input PDF file.
-  -o OUTPUT         Output text file.
-  -r DPI            Resolution of temporary image file [default: 600].
-  --timeout SEC     Timeout in sec to exec `pdftoppm` [default: 60].
-  --page-separator LINE     String to be output as page separator [default: ---].
-  --psm VALUE       Page segmentation mode of `tessoract-ocr` [default: 3].
-  --verbose         Verbose.
+  --lang=LANG, -l LANG          Language, such as `eng`, `jpn`, or `eng+jpn`.
+  <input>                       Input PDF file(s).
+  --output=OUTPUT, -o OUTPUT    Output text file.
+  --resolution=DPI, -r DPI      Resolution of temporary image file [default: 600].
+  --timeout=SEC                 Timeout in sec to exec `pdftoppm` [default: 60].
+  --page-separator=LINE         String to be output as page separator [default: "---"].
+  --psm=VALUE                   Page segmentation mode of `tessoract-ocr` [default: 3].
+  --verbose                     Verbose.
 """
 
 
 def main():
-    args = docopt.docopt(__doc__)
-    input_files = args['<input>']
-    output_file = args['-o']
-    option_lang = args['-l']
-    resolution = int(args['-r'])
-    timeout = int(args['--timeout'])
-    page_separator = args['--page-separator'] or '---'
-    page_segmentation_mode = int(args['--psm'] or '3')
-    option_verbose = args['--verbose']
+    try:
+        subprocess.check_output(['which', 'tesseract'])
+    except subprocess.CalledProcessError as e:
+        if e.returncode == 1:
+            sys.exit("Error: command not found: tesseract. (perhaps need to install `tesseract-ocr`)")
+    try:
+        subprocess.check_output(['which', 'pdftoppm'])
+    except subprocess.CalledProcessError as e:
+        if e.returncode == 1:
+            sys.exit("Error: command not found: pdftoppm. (perhaps need to install `poppler-utils`)")
+
+    raw_args = docopt(__doc__, argv=sys.argv[1:], version="mc-pdf2txt %s" % VERSION)
+    a = CLArgs(_cast_str_values=True, **raw_args)
 
     def verbose_message(msg):
-        if option_verbose:
+        if a.option_verbose:
             print(msg, file=sys.stderr)
 
     def run(cmd, check=False, timeout=None):
-        if option_verbose:
+        if a.option_verbose:
             print('> exec: ' + ' '.join(quote(c) for c in cmd), file=sys.stderr)
         subprocess.run(cmd, check=check, timeout=timeout)
 
@@ -64,19 +74,19 @@ def main():
         verbose_message(f'> make temporary dir: {quote(str(temp_dir))}')
         temp_dir_path = pathlib.Path(temp_dir)
 
-        suffix_len = len("%d" % len(input_files))
-        for i, input_file in enumerate(input_files):
+        suffix_len = len("%d" % len(a.input_files))
+        for i, input_file in enumerate(a.input_files):
             image_file_name_body = f'image-%0{suffix_len}d' % i
             if input_file.lower().endswith('.pdf'):
                 cmd = [
                     'pdftoppm',
-                    '-r', '%d' % resolution,
+                    '-r', '%d' % a.resolution,
                     '-gray',
                     '-png', input_file, 
                     str(temp_dir_path / image_file_name_body)
                 ]
                 try:
-                    run(cmd, check=True, timeout=timeout)
+                    run(cmd, check=True, timeout=a.timeout)
                 except subprocess.TimeoutExpired as e:
                     sys.exit("Timeout expired in running `pdftoppm`. Re-try with the lower resolution (-r) or the larger timeout (--timeout).")
             elif input_file.lower().endswith(('.png', '.jpg', '.jpeg', '.tif')):
@@ -90,9 +100,9 @@ def main():
         # print("page images = %s" % repr(page_images))
 
         cmd0 = ['tesseract']
-        if option_lang:
-            cmd0.extend(['-l', option_lang])
-        cmd0.extend(['--psm', '%d' % page_segmentation_mode])
+        if a.lang:
+            cmd0.extend(['-l', a.lang])
+        cmd0.extend(['--psm', '%d' % a.psm])
         for pi in page_images:
             run(cmd0 + [str(pi), str(pi) + '.txt'], check=True)
 
@@ -105,14 +115,14 @@ def main():
         for pt in page_texts:
             with open(pt) as inp:
                 lines = [L.rstrip() for L in inp.readlines()]
-                lines.append(page_separator)  # add separator
+                lines.append(a.page_separator)  # add separator
                 text_lines.extend(L + '\n' for L in lines)
 
         verbose_message(f'> remove temporary dir: {quote(str(temp_dir))}')
 
-    if output_file:
-        verbose_message(f'> write text to file: {quote(output_file)}')
-        with open(output_file, 'w') as outp:
+    if a.output_file:
+        verbose_message(f'> write text to file: {quote(a.output_file)}')
+        with open(a.output_file, 'w') as outp:
             outp.writelines(text_lines)
     else:
         sys.stdout.writelines(text_lines)
