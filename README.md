@@ -27,8 +27,18 @@ sudo apt install tesseract-ocr-jpn
 
 (2) Install mc-pdf2txt
 
+To make `mc-pdf2txt` compatible with both `docopt` and `docopt-ng`, dependencies on them are now explicitly extra dependencies.
+
+If you know either `docopt` or `docopt-ng` is already installed on your system, just try the following:
+
 ```sh
 pip3 install mc-pdf2txt
+```
+
+If you are unsure `docopt` or `docopt-ng` is installed on your system, try the following:
+
+```sh
+pip3 install mc-pdf2txt[docopt-ng]
 ```
 
 ## Usage
