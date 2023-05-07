@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=61.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mc-pdf2txt"
+description = "Multi-column PDF to Text"
+authors = [{name = "Toshihiro Kamiya", email = "kamiya@mbj.nifty.com"}]
+license = {text = "BSD 2-Clause License"}
+classifiers = [
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+]
+urls = {Homepage = "https://github.com/tos-kamiya/mc-pdf2txt"}
+requires-python = ">=3.8"
+dynamic = ["version"]
+
+[project.readme]
+file = "README.md"
+content-type = "text/markdown"
+
+[project.scripts]
+mc-pdf2txt = "mc_pdf2txt:main"
+
+[tool.setuptools]
+include-package-data = false
+
+[tool.setuptools.packages]
+find = {namespaces = false}
+
+[tool.setuptools.dynamic]
+version = {attr = "mc_pdf2txt._version.__version__"}
