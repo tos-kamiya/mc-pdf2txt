@@ -1,6 +1,8 @@
 mc-pdf2txt
 ==========
 
+**NOTICE: As of September 2024, https://github.com/VikParuchuri/marker offers a far superior tool. This repository will be archived.**
+
 Convert multi-column pdf to text with `poppler` and `tesseract`.
 
 ## Install
@@ -42,7 +44,6 @@ Options:
   <input>           Input PDF file.
   -o OUTPUT         Output text file.
   -r DPI            Resolution of temporary image file [default: 600].
-  --timeout SEC     Timeout in sec to exec `pdftoppm` [default: 60].
   --page-separator LINE     String to be output as page separator [default: ---].
   --psm VALUE       Page segmentation mode of `tessoract-ocr` [default: 3].
   --verbose         Verbose.
